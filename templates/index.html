@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vardaan AI</title>
+    <style>
+        body {
+            background-color: #000000;
+            color: #00FBFF;
+            font-family: 'Courier New', Courier, monospace;
+            text-align: center;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            height: 90vh;
+            justify-content: space-between;
+        }
+        #chat-box {
+            flex-grow: 1;
+            overflow-y: auto;
+            margin-bottom: 20px;
+            border: 2px solid #00FBFF;
+            padding: 15px;
+            border-radius: 15px;
+            text-align: left;
+            font-size: 18px;
+            box-shadow: 0 0 10px #00FBFF;
+        }
+        .user-msg { color: #ffffff; margin: 10px 0; }
+        .vardaan-msg { color: #00FBFF; margin: 10px 0; font-weight: bold; }
+        #mic-btn {
+            background-color: transparent;
+            border: 2px solid #00FBFF;
+            color: #00FBFF;
+            padding: 20px;
+            font-size: 24px;
+            font-weight: bold;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 0 15px #00FBFF;
+            transition: 0.3s;
+        }
+        #mic-btn.listening {
+            background-color: #00FBFF;
+            color: #000000;
+            box-shadow: 0 0 30px #00FBFF;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>VARDAAN AI</h1>
+    <div id="chat-box"></div>
+
+    <button id="mic-btn" onclick="startListening()">Tap to Speak 🎙️</button>
+
+    <script>
+        const chatBox = document.getElementById('chat-box');
+        const micBtn = document.getElementById('mic-btn');
+
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const recognition = new SpeechRecognition();
+        recognition.lang = 'en-US';
+
+        const synth = window.speechSynthesis;
+
+        function addMessage(sender, text, className) {
+            chatBox.innerHTML += `<div class="${className}"><b>${sender}:</b> ${text}</div>`;
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function speakText(text) {
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.rate = 1.0; 
+            synth.speak(utterance);
+        }
+
+        function startListening() {
+            recognition.start();
+            micBtn.innerText = "Listening...";
+            micBtn.classList.add("listening");
+        }
+
+        recognition.onresult = async (event) => {
+            const userQuery = event.results[0][0].transcript;
+            micBtn.innerText = "Thinking...";
+            micBtn.classList.remove("listening");
+            
+            addMessage("Ayush", userQuery, "user-msg");
+
+            try {
+                const response = await fetch("/chat", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ query: userQuery })
+                });
+                
+                const data = await response.json();
+                const reply = data.reply;
+                
+                addMessage("Vardaan", reply, "vardaan-msg");
+                speakText(reply);
+                micBtn.innerText = "Tap to Speak 🎙️";
+            } catch (error) {
+                addMessage("System", "Error: Server connection failed.", "vardaan-msg");
+                micBtn.innerText = "Tap to Speak 🎙️";
+            }
+        };
+
+        recognition.onerror = (event) => {
+            micBtn.innerText = "Tap to Speak 🎙️";
+            micBtn.classList.remove("listening");
+        };
+    </script>
+</body>
+</html>
